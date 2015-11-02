@@ -1,5 +1,7 @@
 import pygame
 from pygame.gfxdraw import aacircle
+import owl
+import struct
 import sys
 import numpy as np
 
@@ -16,8 +18,8 @@ class Plotter(object):
 
     def set_constants(self):
         # display parameters
-        self.SCREEN_HEIGHT = 800 # in pixels
-        self.SCREEN_WIDTH = 800 # in pixels
+        self.SCREEN_HEIGHT = 600 # in pixels
+        self.SCREEN_WIDTH = 600 # in pixels
         self.FRAME_RATE = 60 # in Hz
         self.BG_COLOR = 120,120,120
         self.TREADMILL_COLOR = 180,180,180
@@ -65,44 +67,58 @@ class Plotter(object):
         self.DISPLAY_FREQ = 10 # in Hz
         self.DISPLAY_POINTS = self.DISPLAY_FREQ*self.TIME_HISTORY
         self.DISPLAY_RATIO = self.SAMPLE_FREQ/self.DISPLAY_FREQ # make sure evenly divisible
+        self.SERVER_IP = '192.168.1.230'
 
         # force display parameters
-        self.FORCE_MAX = 100 # in Newtons
-        self.FORCE_THRESHOLD = 25 # in Newtons
+        self.FORCE_MAX = 5000 # in Newtons
+        self.FORCE_THRESHOLD = 100 # in Newtons
 
     def set_variables(self):
         self.force_dict = {}
-        self.force_dict['left'] = {'frontleft': np.zeros(self.TIME_POINTS),
-                                   'frontright': np.zeros(self.TIME_POINTS),
-                                   'backleft': np.zeros(self.TIME_POINTS),
-                                   'backright': np.zeros(self.TIME_POINTS)}
-        self.force_dict['right'] = {'frontleft': np.zeros(self.TIME_POINTS),
-                                    'frontright': np.zeros(self.TIME_POINTS),
-                                    'backleft': np.zeros(self.TIME_POINTS),
-                                    'backright': np.zeros(self.TIME_POINTS)}
+        self.force_dict['left'] = {'f_x': np.zeros(self.TIME_POINTS),
+                                   'f_y': np.zeros(self.TIME_POINTS),
+                                   'f_z': np.zeros(self.TIME_POINTS),
+                                   'm_x': np.zeros(self.TIME_POINTS),
+                                   'm_y': np.zeros(self.TIME_POINTS),
+                                   'm_z': np.zeros(self.TIME_POINTS),
+                                   'zero': np.zeros(self.TIME_POINTS)}
+        self.force_dict['right'] = {'f_x': np.zeros(self.TIME_POINTS),
+                                   'f_y': np.zeros(self.TIME_POINTS),
+                                   'f_z': np.zeros(self.TIME_POINTS),
+                                   'm_x': np.zeros(self.TIME_POINTS),
+                                   'm_y': np.zeros(self.TIME_POINTS),
+                                   'm_z': np.zeros(self.TIME_POINTS),
+                                   'zero': np.zeros(self.TIME_POINTS)}
         self.force_display_dict = {}
-        self.force_display_dict['left'] = {'frontleft': np.zeros(self.DISPLAY_POINTS),
-                                           'frontright': np.zeros(self.DISPLAY_POINTS),
-                                           'backleft': np.zeros(self.DISPLAY_POINTS),
-                                           'backright': np.zeros(self.DISPLAY_POINTS),
-                                           'mean': np.zeros(self.DISPLAY_POINTS)}
-        self.force_display_dict['right'] = {'frontleft': np.zeros(self.DISPLAY_POINTS),
-                                            'frontright': np.zeros(self.DISPLAY_POINTS),
-                                            'backleft': np.zeros(self.DISPLAY_POINTS),
-                                            'backright': np.zeros(self.DISPLAY_POINTS),
-                                            'mean': np.zeros(self.DISPLAY_POINTS)}
-        ###########################
-        # only for sample display #
-        ###########################
-        self.force_dict['left']['frontleft'][:] = 100*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['left']['frontright'][:] = 70-70*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['left']['backleft'][:] = 60*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['left']['backright'][:] = 30-30*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['right']['frontleft'][:] = 40*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['right']['frontright'][:] = 50*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['right']['backleft'][:] = 80-80*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        self.force_dict['right']['backright'][:] = 90*np.arange(self.TIME_POINTS)/float(self.TIME_POINTS)
-        ###########################
+        self.force_display_dict['left'] = {'f_x': np.zeros(self.TIME_POINTS),
+                                           'f_y': np.zeros(self.TIME_POINTS),
+                                           'f_z': np.zeros(self.TIME_POINTS),
+                                           'm_x': np.zeros(self.TIME_POINTS),
+                                           'm_y': np.zeros(self.TIME_POINTS),
+                                           'm_z': np.zeros(self.TIME_POINTS),
+                                           'zero': np.zeros(self.TIME_POINTS)}
+        self.force_display_dict['right'] = {'f_x': np.zeros(self.TIME_POINTS),
+                                           'f_y': np.zeros(self.TIME_POINTS),
+                                           'f_z': np.zeros(self.TIME_POINTS),
+                                           'm_x': np.zeros(self.TIME_POINTS),
+                                           'm_y': np.zeros(self.TIME_POINTS),
+                                           'm_z': np.zeros(self.TIME_POINTS),
+                                           'zero': np.zeros(self.TIME_POINTS)}
+        self.channel_dict = {}
+        self.channel_dict['left'] = {'f_x': 32,
+                                     'f_y': 33,
+                                     'f_z': 34,
+                                     'm_x': 35,
+                                     'm_y': 36,
+                                     'm_z': 37,
+                                     'zero': 38}
+        self.channel_dict['right'] = {'f_x': 39,
+                                     'f_y': 40,
+                                     'f_z': 41,
+                                     'm_x': 42,
+                                     'm_y': 43,
+                                     'm_z': 44,
+                                     'zero': 45}
 
         self.left_force_display = np.ones((2,self.DISPLAY_POINTS))
         self.right_force_display = np.ones((2,self.DISPLAY_POINTS))
@@ -119,6 +135,29 @@ class Plotter(object):
         self.right_leftright_ratio = 0
         self.right_fwdback_ratio = 0
 
+        #################
+        # OWL VARIABLES #
+        #################
+
+        # initialize OWL
+        self.OWL = owl.Context()
+
+        # connect to the server
+        self.OWL.open(self.SERVER_IP)
+
+        # initialize a session and enable data types
+        self.OWL.initialize('event.markers=1 event.inputs=1 slave=0')
+
+        # start streaming
+        self.OWL.streaming(1)
+        self.channels = []
+
+    def get_channels(s):
+        options = dict(map(lambda x: x.split('='), s.split()))
+        if 'channelids' not in options:
+            raise Exception('channelids entry not found!')
+        return map(lambda x: int(x), filter(lambda x: len(x) > 0, options['channelids'].split(',')))
+
     def check_input(self):
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -127,13 +166,20 @@ class Plotter(object):
                 if event.key == pygame.K_ESCAPE:
                     self.quit()
 
-    def update(self):
-        ######################
-        # only for test data #
-        ######################
-        for key1,val1 in self.force_dict.iteritems():
-            for key2,val2 in val1.iteritems():
-                self.force_dict[key1][key2] = np.roll(self.force_dict[key1][key2], -1)
+    def update(self, inp):
+        if len(self.channels) == 0:
+            print('no channel information!')
+        # each sample is 16-bits, so divide number of bytes by 2
+        num_samples = len(inp.data) / 2
+        num_points = num_samples / len(self.channels)
+        samples = struct.unpack('%dh' % num_samples, inp.data)
+
+        # self.channels[i % len(self.channels)] # this might be useful
+        channel_id = 2
+
+        self.force_dict['left']['f_z'] = np.roll(self.force_dict['left']['f_z'],
+                                                 -num_points)
+        self.force_dict['left']['f_z'][-num_points:] = samples[channel_id::len(self.channels)]
 
         #####################
         # needs to be added #
@@ -153,42 +199,49 @@ class Plotter(object):
                     self.force_display_dict[key1][key2][samples] = (
                         np.mean(self.force_dict[key1][key2][start_idx:end_idx]))
 
-        # calculate mean force
-        for key,val in self.force_display_dict.iteritems():
-            for sample in range(self.DISPLAY_POINTS):
-                self.force_display_dict[key]['mean'][sample] = np.mean([self.force_display_dict[key]['frontleft'][sample],
-                                                                self.force_display_dict[key]['frontright'][sample],
-                                                                self.force_display_dict[key]['backleft'][sample],
-                                                                self.force_display_dict[key]['backright'][sample]])
-
+        # plot just the mean z forces on each treadmill
         self.left_force_display[1,:] = (self.PLOT_YPOS + self.PLOT_HEIGHT
-                                        - self.force_display_dict['left']['mean'][:]
+                                        - self.force_display_dict['left']['f_z'][:]
                                           /self.FORCE_MAX*self.PLOT_HEIGHT)
         self.right_force_display[1,:] = (self.PLOT_YPOS + self.PLOT_HEIGHT
-                                         - self.force_display_dict['right']['mean'][:]
+                                         - self.force_display_dict['right']['f_z'][:]
                                            /self.FORCE_MAX*self.PLOT_HEIGHT)
 
         # calculate realtime display parameters
-        self.left_force_left = self.force_display_dict['left']['frontleft'][-1]+self.force_display_dict['left']['backleft'][-1]
-        self.left_force_right = self.force_display_dict['left']['frontright'][-1]+self.force_display_dict['left']['backright'][-1] 
-        self.left_force_fwd = self.force_display_dict['left']['frontleft'][-1]+self.force_display_dict['left']['frontright'][-1]
-        self.left_force_back = self.force_display_dict['left']['backleft'][-1]+self.force_display_dict['left']['backright'][-1]
-        self.left_leftright_ratio = self.left_force_right/(self.left_force_left+self.left_force_right+1e-12)
-        self.left_fwdback_ratio = self.left_force_fwd/(self.left_force_fwd+self.left_force_back+1e-12)
+        self.left_leftright_ratio = 0
+        self.left_fwdback_ratio = 0
 
-        self.right_force_left = self.force_display_dict['right']['frontleft'][-1]+self.force_display_dict['right']['backleft'][-1]
-        self.right_force_right = self.force_display_dict['right']['frontright'][-1]+self.force_display_dict['right']['backright'][-1]
-        self.right_force_fwd = self.force_display_dict['right']['frontleft'][-1]+self.force_display_dict['right']['frontright'][-1]
-        self.right_force_back = self.force_display_dict['right']['backleft'][-1]+self.force_display_dict['right']['backright'][-1]
-        self.right_leftright_ratio = self.right_force_right/(self.right_force_left+self.right_force_right+1e-12)
-        self.right_fwdback_ratio = self.right_force_fwd/(self.right_force_fwd+self.right_force_back+1e-12)
+        self.right_leftright_ratio = 0
+        self.right_fwdback_ratio = 0
 
 
     def run(self):
-        while True:
+        while self.OWL.isOpen() and self.OWL.property('initialized'):
             time_passed = self.clock.tick_busy_loop(self.FRAME_RATE)
             self.check_input()
-            self.update()
+
+            # poll for new data
+            event = self.OWL.nextEvent()
+            if not event: continue
+
+            # parse channel data
+            if len(self.channels) == 0:
+                di = OWL.property('deviceinfo')
+                for d in di:
+                    if d.name == 'daq':
+                        self.channels = self.get_channels(d.options)
+
+            # parse new event
+            if event.type_id == owl.Type.FRAME:
+                pass
+            if event.type_id == owl.Type.INPUT:
+                for inp in event.data:
+                    self.update(inp)
+            elif event.type_id == owl.Type.ERROR:
+                print('ERROR: %s' % event.data)
+                break
+            elif event.name == 'done':
+                break
             self.draw()
             pygame.display.flip()
 
@@ -198,6 +251,8 @@ class Plotter(object):
         pygame.draw.rect(self.screen, self.TREADMILL_COLOR, self.RIGHT_TREADMILL_RECT)        
         pygame.draw.rect(self.screen, self.TREADMILL_COLOR, self.LEFT_PLOT_RECT)        
         pygame.draw.rect(self.screen, self.TREADMILL_COLOR, self.RIGHT_PLOT_RECT)        
+
+        # plots the force trajectories
         pygame.draw.lines(self.screen, self.PLOT_COLOR, False, 
                           self.left_force_display.transpose(), 6)
         pygame.draw.lines(self.screen, self.PLOT_COLOR, False, 
@@ -230,6 +285,8 @@ class Plotter(object):
                                 color)
 
     def quit(self):
+        self.OWL.done()
+        self.OWL.close()
         sys.exit()
 
 if __name__ == "__main__":
